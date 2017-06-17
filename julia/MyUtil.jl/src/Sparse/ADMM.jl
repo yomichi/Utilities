@@ -1,4 +1,6 @@
-function solve_L1_ADMM!(x::Vector, y::AbstractVector, A::AbstractMatrix, lambda::Real, mu::Real; tol::Real=1.0e-4)
+export solve_L1_ADMM!, solve_L1_ADMM
+
+function solve_L1_ADMM!(x::Vector, y::AbstractVector, A::AbstractMatrix, lambda::Real, mu::Real; tol::Real=1.0e-4, maxiter::Integer=1000)
     nx = length(x)
     ny = length(y)
 
@@ -11,29 +13,45 @@ function solve_L1_ADMM!(x::Vector, y::AbstractVector, A::AbstractMatrix, lambda:
     end
     h = zeros(nx)
 
-    B = LinAlg.BLAS.gemm('T','N',1.0/lambda,A,A)
-    @inbounds for i in 1:nx
-        B[i,i] += mu
-    end
-    cf = cholfact(B)
+    # B = LinAlg.BLAS.gemm('T','N',1.0/lambda,A,A)
+    # @inbounds for i in 1:nx
+    #     B[i,i] += mu
+    # end
+    # cf = cholfact(Symmetric(B))
 
-    res = Inf
+    B = mu*eye(nx) + (1.0/lambda)*A'*A
+
+    invB = inv(B)
+
+    for iter in 1:maxiter
+        next_h = h + mu*(x-z)
+        x[:] = invB*(ATy+mu*z-h)
+        z[:] = soft_threshold(x-invmu*h, invmu)
+        h[:] = next_h
+    end
+
+    #=
     while res > tol
         res = 0.0
         nrm = 0.0
         @inbounds for i in 1:nx
-            z[i] = ATy[i] + mu*x[i] - h[i]
+            x[i] = ATy[i] + mu*z[i] - h[i]
         end
-        A_ldiv_B!(cf, z)
+        A_ldiv_B!(cf, x)
         @inbounds for i in 1:nx
-            tmp = soft_threshold(z[i]-invmu*h[i], invmu)
-            res += (tmp - x[i])^2
+            tmp = soft_threshold(x[i]-invmu*h[i], invmu)
+            res += (tmp - z[i])^2
             nrm += tmp*tmp
-            x[i] = tmp
-            h[i] += mu*(z[i]-x[i])
+            z[i] = tmp
+            h[i] += mu*(x[i]-z[i])
         end
         res = sqrt((res/nrm)/nx)
+        @show res
     end
+    =#
+
+    x[:] = z[:]
+
     return x
 end
 

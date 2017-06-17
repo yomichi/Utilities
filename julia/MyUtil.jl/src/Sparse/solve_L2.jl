@@ -1,3 +1,5 @@
+export solve_L2!, solve_L2
+
 """
 solve_L2!(x::Vector, y::Vector, A::Matrix, lambda::Real)
 solve_L2!(x::Vector, y::Vector, A::Matrix, lambda::Real, etas::Vector)
@@ -12,7 +14,7 @@ function solve_L2!(x::Vector, y::Vector, A::Matrix, lambda::Real, etas::Vector)
         B[i,i] += lambda/etas[i] 
     end
     cf = cholfact(B)
-    x = A'*y
+    LinAlg.BLAS.gemv!('T', 1.0, A, y, 0.0, x)
     return A_ldiv_B!(cf,x)
 end
 

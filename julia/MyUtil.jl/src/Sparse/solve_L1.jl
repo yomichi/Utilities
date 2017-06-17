@@ -1,3 +1,5 @@
+export solve_L1!, solve_L1
+
 """
 solve_L1!(x::Vector, y::Vector, A::AbstractMatrix, lambda::Real; tol::Real=1.0e-4)
 
