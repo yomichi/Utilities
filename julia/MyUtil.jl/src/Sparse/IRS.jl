@@ -8,7 +8,7 @@ function lasso!(::Type{LassoIRS}, x::Vector, y::Vector, A::AbstractMatrix; lambd
     ft = zeros(nk)
     res = Inf
     while res > tol
-        solve_L2!(x,y,A,lambda,etas)
+        ridge!(x,y,A,lambda,etas)
         nrm = 0.0
         res = 0.0
         @inbounds for i in 1:nk

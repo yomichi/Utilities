@@ -46,7 +46,7 @@ function lasso!(::Type{LassoISTA}, x::Vector, y::AbstractVector, A::AbstractArra
     return x
 end
 
-function lasso(::Type{LassoISTA}, y:AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000, miniter::Integer=10)
+function lasso(::Type{LassoISTA}, y::AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000, miniter::Integer=10)
     x = zeros(size(A,2))
     lasso!(LassoISTA, x,y,A,lambda=lambda,tol=tol,maxiter=maxiter, miniter=miniter)
     return x
