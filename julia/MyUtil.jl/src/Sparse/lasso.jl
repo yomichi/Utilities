@@ -1,18 +1,18 @@
-export lasso!, lasso
+export LassoSolver
+abstract type LassoSolver end
+
+export fit!
 
 """
-lasso!([solver_type,] x::Vector, y::Vector, A::AbstractMatrix)
-
-solve `minarg_x |y-Ax|^2 + lambda sum_k |x_k|`
-"""
-lasso!(x::Vector, y::Vector, A::AbstractMatrix; opt...) = lasso!(LassoADMM, x, y, A; opt...)
-
-"""
-lasso([solver_type,] y::Vector, A::AbstractMatrix)
+fit!(solver, [x::Vector,] y::Vector, A::AbstractMatrix)
 
 solve `minarg_x |y-Ax|^2 + lambda sum_k |x_k|`
 """
-lasso(y::Vector, A::AbstractMatrix; opt...) = lasso(LassoADMM, y, A; opt...)
+function fit!(solver::LassoSolver, y::AbstractVector, A::AbstractMatrix, lambda::Real=1.0)
+    x = similar(y, size(A,1))
+    fit!(solver, x, y, A, lambda)
+    return x
+end
 
 include("IRS.jl")
 include("ISTA.jl")
