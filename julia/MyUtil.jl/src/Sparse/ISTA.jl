@@ -1,6 +1,7 @@
-export solve_L1_ISTA!, solve_L1_ISTA
+@compat immutable LassoISTA end
 
-function solve_L1_ISTA!(x::Vector, y::AbstractVector, A::AbstractArray, lambda::Real; tol::Real=1.0e-4)
+export LassoISTA
+function lasso!(::Type{LassoISTA}, x::Vector, y::AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000, miniter::Integer=10)
     nx = length(x)
     ny = length(y)
 
@@ -11,9 +12,8 @@ function solve_L1_ISTA!(x::Vector, y::AbstractVector, A::AbstractArray, lambda::
     Llambda = vecnorm(A'*A)
     invLlambda = 1.0/Llambda
     invL = invLlambda * lambda
-    res = Inf
 
-    while res > tol
+    for iter in 1:maxiter
         # v <- y-Ax
         LinAlg.BLAS.gemv!('N',-1.0,A,x,0.0,v)
         @inbounds for i in 1:nx
@@ -39,12 +39,15 @@ function solve_L1_ISTA!(x::Vector, y::AbstractVector, A::AbstractArray, lambda::
             x[i] = v[i]
         end
         res = sqrt((res/nrm)/nx)
+        if iter >= miniter && res < tol
+            break
+        end
     end
     return x
 end
 
-function solve_L1_ISTA(y::AbstractVector, A::AbstractArray, lambda::Real; tol::Real=1.0e-4)
+function lasso(::Type{LassoISTA}, y:AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000, miniter::Integer=10)
     x = zeros(size(A,2))
-    solve_L1_ISTA!(x,y,A,lambda,tol=tol)
+    lasso!(LassoISTA, x,y,A,lambda=lambda,tol=tol,maxiter=maxiter, miniter=miniter)
     return x
 end

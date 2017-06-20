@@ -1,6 +1,8 @@
-export solve_L1_FISTA!, solve_L1_FISTA
+@compat immutable LassoFISTA end
 
-function solve_L1_FISTA!(x::Vector, y::AbstractVector, A::AbstractArray, lambda::Real; tol::Real=1.0e-4, miniter::Integer=10, maxiter::Integer=1000)
+export LassoFISTA
+
+function lasso!(::Type{LassoFISTA}, x::Vector, y::AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, miniter::Integer=10, maxiter::Integer=1000)
     nx = length(x)
     ny = length(y)
 
@@ -48,15 +50,13 @@ function solve_L1_FISTA!(x::Vector, y::AbstractVector, A::AbstractArray, lambda:
             break
         end
 
-        # w = v + r * (v-x)
-        # x[:] = v[:]
     end
 
     return x
 end
 
-function solve_L1_FISTA(y::AbstractVector, A::AbstractArray, lambda::Real; tol::Real=1.0e-4, miniter::Integer=10, maxiter::Integer=1000)
+function lasso(::Type{LassoFISTA}, y::AbstractVector, A::AbstractArray; lambda::Real=1.0, tol::Real=1.0e-4, miniter::Integer=10, maxiter::Integer=1000)
     x = zeros(size(A,2))
-    solve_L1_FISTA!(x,y,A,lambda,tol=tol, miniter=miniter, maxiter=maxiter)
+    lasso!(LassoFISTA,x,y,A,lambda=lambda,tol=tol, miniter=miniter, maxiter=maxiter)
     return x
 end

@@ -1,7 +1,4 @@
 include("makesample.jl")
 include("soft_thresold.jl")
 include("solve_L2.jl")
-include("solve_L1.jl")
-include("ISTA.jl")
-include("FISTA.jl")
-include("ADMM.jl")
+include("lasso.jl")
