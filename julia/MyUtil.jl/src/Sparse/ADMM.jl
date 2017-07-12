@@ -112,8 +112,6 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     low_res = residues[end]
     slope = (high_res-low_res)/(high_lambda-low_lambda)
 
-    @show high_res, low_res, high_lambda, low_lambda,slope
-
     f = x->low_res + slope*(log(x)-low_lambda)
 
     max_diff = 0.0
