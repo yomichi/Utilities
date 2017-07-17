@@ -9,7 +9,7 @@
 end
 
 @compat mutable struct LassoResult
-    opt_lambda::Float64
+    optlambda::Float64
     lambdas::Vector{Float64}
     residues::Vector{Float64}
     nonzeros::Vector{Int}
@@ -124,9 +124,12 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
             imax = i
         end
     end
-    result = LassoResult(lambdas[imax], lambdas, residues, nonzeros)
+    optlambda = lambdas[imax]
+    sortedidx = sortperm(lambdas)
 
-    return fit_impl!(solver, x, y, A, cf, lambdas[imax]), result
+    result = LassoResult(optlambda, lambdas[sortedidx], residues[sortedidx], nonzeros[sortedidx])
+
+    return fit_impl!(solver, x, y, A, cf, optlambda), result
 end
 
 function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractMatrix, cf::LinAlg.Cholesky, lambda::Real)
