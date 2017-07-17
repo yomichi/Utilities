@@ -1,4 +1,4 @@
-@compat mutable struct LassoADMM <: LassoSolver
+type LassoADMM <: LassoSolver
     mu::Float64
     tol::Float64
     maxiter::Int
@@ -8,7 +8,7 @@
     end
 end
 
-@compat mutable struct LassoResult
+type LassoResult
     optlambda::Float64
     lambdas::Vector{Float64}
     residues::Vector{Float64}

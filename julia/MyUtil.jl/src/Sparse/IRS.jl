@@ -1,4 +1,4 @@
-@compat mutable struct LassoIRS <: LassoSolver
+type LassoIRS <: LassoSolver
     tol::Float64
     maxiter::Int
     costs::Vector{Float64}

@@ -1,4 +1,4 @@
-@compat mutable struct LassoFISTA <: LassoSolver
+type LassoFISTA <: LassoSolver
     tol::Float64
     maxiter::Int
     miniter::Int

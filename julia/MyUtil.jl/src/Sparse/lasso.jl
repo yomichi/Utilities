@@ -1,5 +1,5 @@
 export LassoSolver
-abstract type LassoSolver end
+@compat abstract type LassoSolver end
 
 export fit!
 
