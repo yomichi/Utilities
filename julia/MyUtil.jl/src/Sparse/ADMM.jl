@@ -13,6 +13,8 @@ type LassoResult
     optlambda::Float64
     lambdas::Vector{Float64}
     residues::Vector{Float64}
+    penalties::Vector{Float64}
+    costs::Vector{Float64}
     nonzeros::Vector{Int}
 end
 
@@ -50,6 +52,7 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
 
     lambda = 1.0
     res = 0.0
+    penalty = 0.0
     nonzero = 0
 
     fit_impl!(solver, x, y, A, cf, lambda)
@@ -59,10 +62,13 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     end
     @inbounds for i in 1:K
         nonzero += ifelse(x[i]==0.0, 0.0, 1)
+        penalty += abs(x[i])
     end
 
     lambdas = [lambda]
     residues = [res]
+    penalties = [penalty]
+    costs = [solver.costs[end]]
     nonzeros = [nonzero]
 
     while nonzero > 0 && lambda < 1.0e8
@@ -70,15 +76,19 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
         fit_impl!(solver, x, y, A, cf, lambda)
         LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
         res = 0.0
+        penalty = 0.0
         nonzero = 0
         @inbounds for i in 1:N
             res += (y[i]-Ax[i])^2
         end
         @inbounds for i in 1:K
             nonzero += ifelse(x[i]==0.0, 0.0, 1)
+            penalty += abs(x[i])
         end
         push!(lambdas, lambda)
         push!(residues, res)
+        push!(penalties, penalty)
+        push!(costs, solver.costs[end])
         push!(nonzeros, nonzero)
     end
 
@@ -91,20 +101,26 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
         fit_impl!(solver, x, y, A, cf, lambda)
         LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
         res = 0.0
+        penalty = 0.0
         nonzero = 0
         @inbounds for i in 1:N
             res += (y[i]-Ax[i])^2
         end
         @inbounds for i in 1:K
+            penalty += abs(x[i])
             nonzero += ifelse(x[i]==0.0, 0.0, 1)
         end
         if(nonzero == 0)
             high_lambda = lambdas[end] = lambda
             high_res = residues[end] = res
+            penalties[end] = penalty
+            costs[end] = solver.costs[end]
             nonzeros[end] = nonzero
         else
             push!(lambdas, lambda)
             push!(residues, res)
+            push!(penalties, penalty)
+            push!(costs, solver.costs[end])
             push!(nonzeros, nonzero)
         end
     end
@@ -128,7 +144,7 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     optlambda = lambdas[imax]
     sortedidx = sortperm(lambdas)
 
-    result = LassoResult(optlambda, lambdas[sortedidx], residues[sortedidx], nonzeros[sortedidx])
+    result = LassoResult(optlambda, lambdas[sortedidx], residues[sortedidx], penalties[sortedidx], costs[sortedidx], nonzeros[sortedidx])
 
     return fit_impl!(solver, x, y, A, cf, optlambda), result
 end
