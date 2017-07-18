@@ -2,9 +2,10 @@ type LassoADMM <: LassoSolver
     mu::Float64
     tol::Float64
     maxiter::Int
+    miniter::Int
     costs::Vector{Float64}
-    function LassoADMM(;mu::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000)
-        new(mu, tol, maxiter, zeros(0))
+    function LassoADMM(;mu::Real=1.0, tol::Real=1.0e-4, maxiter::Integer=1000, miniter::Integer=2)
+        new(mu, tol, maxiter, miniter, zeros(0))
     end
 end
 
@@ -16,11 +17,11 @@ type LassoResult
 end
 
 export LassoADMM, LassoResult
-export fit_elbow, fit_elbow!
+export fit_elbow!
 
 function fit!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractMatrix, lambda::Real=1.0)
     nx = length(x)
-    B = LinAlg.BLAS.gemm('T','N',1.0,A,A)
+    B = A'*A
     @inbounds for i in 1:nx
         B[i,i] += solver.mu
     end
@@ -28,7 +29,7 @@ function fit!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractMatrix
     return fit_impl!(solver, x, y, A, cf, lambda)
 end
 
-function fit_elbow(solver::LassoADMM, y::AbstractVector, A::AbstractMatrix)
+function fit_elbow!(solver::LassoADMM, y::AbstractVector, A::AbstractMatrix)
     x = zeros(size(A,2))
     return fit_elbow!(solver, x, y, A)
 end
@@ -145,9 +146,9 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
     invnx = 1.0/nx
     invmu = 1.0/mu
 
-    ATy = LinAlg.BLAS.gemv('T', A, y)
-    z = similar(x)
-    Ax = similar(x)
+    ATy = A'*y
+    z = zeros(nx)
+    Ax = zeros(ny)
     @inbounds for i in 1:nx
         x[i] = z[i] = ATy[i]
     end
@@ -180,9 +181,10 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
         end
         cost *= invnx
         push!(solver.costs, cost)
-        if abs(cost - old_cost)/cost < tol
+        if abs(cost - old_cost)/cost < tol && iter >= solver.miniter
             break
         end
+        old_cost = cost
     end
     x[:] = z[:]
     return x
