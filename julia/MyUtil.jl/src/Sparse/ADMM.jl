@@ -11,6 +11,7 @@ end
 
 type LassoResult
     optlambda::Float64
+    optnonzero::Int
     lambdas::Vector{Float64}
     residues::Vector{Float64}
     penalties::Vector{Float64}
@@ -142,14 +143,16 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
         end
     end
     optlambda = lambdas[imax]
+    optnonzero = nonzeros[imax]
     sortedidx = sortperm(lambdas)
 
-    result = LassoResult(optlambda, lambdas[sortedidx], residues[sortedidx], penalties[sortedidx], costs[sortedidx], nonzeros[sortedidx])
+    result = LassoResult(optlambda, optnonzero, lambdas[sortedidx], residues[sortedidx], penalties[sortedidx], costs[sortedidx], nonzeros[sortedidx])
 
     return fit_impl!(solver, x, y, A, cf, optlambda), result
 end
 
 function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractMatrix, cf::LinAlg.Cholesky, lambda::Real)
+    @show lambda
     mu = solver.mu
     tol = solver.tol
     maxiter = solver.maxiter
@@ -172,9 +175,25 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
 
     cost = 0.0
     LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-    @inbounds for i in 1:nx
+    for i in 1:ny
         cost += 0.5*(y[i] - Ax[i])^2
+        if isinf(cost)
+            info("cost diverges at $(i)!")
+            for j in 1:ny
+                @printf("%d %.15f %.15f\n", j, Ax[j], y[j])
+            end
+            error("")
+        end
+    end
+    for i in 1:nx
         cost += lambda*abs(x[i])
+        if isinf(cost)
+            info("cost diverges at $(i)!")
+            for j in 1:nx
+                @printf("%d %.15f\n", j, x[j])
+            end
+            error("")
+        end
     end
     cost *= invnx
     old_cost = cost
@@ -191,10 +210,16 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
 
         cost = 0.0
         LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-        @inbounds for i in 1:nx
+        @inbounds for i in 1:ny
             cost += 0.5*(y[i] - Ax[i])^2
+        end
+        @inbounds for i in 1:nx
             cost += lambda*abs(x[i])
         end
+        if isinf(cost)
+            error("cost diverges!")
+        end
+        cost *= invnx
         cost *= invnx
         push!(solver.costs, cost)
         if abs(cost - old_cost)/cost < tol && iter >= solver.miniter
