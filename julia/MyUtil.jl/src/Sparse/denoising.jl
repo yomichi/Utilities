@@ -2,14 +2,22 @@ export denoising!
 
 function denoising!(solver, fs)
     N = length(fs)
-    A = CosineFourierKernel(N,N)
-    ks, result = fit_elbow!(solver, fs, A)
-    return A*ks, ks, result
+    F = zeros(2N)
+    F[1:N] = fs[:]
+    F[(N+1):end] = fs[end:-1:1]
+    A = CosineFourierKernel(2N,2N)
+    ks, result, p = fit_elbow!(solver, F, A)
+    LinAlg.BLAS.gemv!('N', 1.0, A, ks, 1.0, F)
+    return F[1:N], ks, result
 end
 
 function denoising!(solver, fs, lambda)
     N = length(fs)
-    A = CosineFourierKernel(N,N)
-    ks = fit!(solver, fs, A, lambda)
-    return A*ks, ks
+    F = zeros(2N)
+    F[1:N] = fs[:]
+    F[(N+1):end] = fs[end:-1:1]
+    A = CosineFourierKernel(2N,2N)
+    ks = fit!(solver, F, A, lambda)
+    LinAlg.BLAS.gemv!('N', 1.0, A, ks, 1.0, F)
+    return F[1:N], ks
 end

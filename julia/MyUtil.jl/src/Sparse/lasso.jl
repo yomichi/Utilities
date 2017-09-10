@@ -5,6 +5,7 @@ include("LinSigmoid.jl")
 using .LinSigmoid
 export LinSigmoid
 
+export fit
 export fit!
 
 """

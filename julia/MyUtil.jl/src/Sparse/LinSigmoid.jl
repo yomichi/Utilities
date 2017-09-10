@@ -1,6 +1,6 @@
 module LinSigmoid
-import Base.broadcast
 
+import LearnBase.fit
 export linsigmoid
 
 """
