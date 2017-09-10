@@ -52,44 +52,22 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     Ax = zeros(N)
 
     lambda = 1.0
-    res = 0.0
-    penalty = 0.0
-    nonzero = 0
-
     fit_impl!(solver, x, y, A, cf, lambda)
-    LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-    @inbounds for i in 1:N
-        res += (y[i]-Ax[i])^2
-    end
-    @inbounds for i in 1:K
-        nonzero += ifelse(x[i]==0.0, 0.0, 1)
-        penalty += abs(x[i])
-    end
-
+    nonzero, res, penalty, cost = lasso_cost!(x,y,A,Ax,lambda)
     lambdas = [lambda]
     residues = [res]
     penalties = [penalty]
-    costs = [solver.costs[end]]
+    costs = [cost]
     nonzeros = [nonzero]
 
     while nonzero > 0 && lambda < 1.0e8
         lambda *= 2.0
         fit_impl!(solver, x, y, A, cf, lambda)
-        LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-        res = 0.0
-        penalty = 0.0
-        nonzero = 0
-        @inbounds for i in 1:N
-            res += (y[i]-Ax[i])^2
-        end
-        @inbounds for i in 1:K
-            nonzero += ifelse(x[i]==0.0, 0.0, 1)
-            penalty += abs(x[i])
-        end
+        nonzero, res, penalty, cost = lasso_cost!(x,y,A,Ax,lambda)
         push!(lambdas, lambda)
         push!(residues, res)
         push!(penalties, penalty)
-        push!(costs, solver.costs[end])
+        push!(costs, cost)
         push!(nonzeros, nonzero)
     end
 
@@ -100,31 +78,23 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     while nonzero < K && lambda > 1.0e-8
         lambda *= 0.5
         fit_impl!(solver, x, y, A, cf, lambda)
-        LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-        res = 0.0
-        penalty = 0.0
-        nonzero = 0
-        @inbounds for i in 1:N
-            res += (y[i]-Ax[i])^2
-        end
-        @inbounds for i in 1:K
-            penalty += abs(x[i])
-            nonzero += ifelse(x[i]==0.0, 0.0, 1)
-        end
+        nonzero, res, penalty, cost = lasso_cost!(x,y,A,Ax,lambda)
         if(nonzero == 0)
             high_lambda = lambdas[end] = lambda
             high_res = residues[end] = res
             penalties[end] = penalty
-            costs[end] = solver.costs[end]
+            costs[end] = cost
             nonzeros[end] = nonzero
         else
             push!(lambdas, lambda)
             push!(residues, res)
             push!(penalties, penalty)
-            push!(costs, solver.costs[end])
+            push!(costs, cost)
             push!(nonzeros, nonzero)
         end
     end
+
+    #=
     high_lambda = log(high_lambda)
     low_lambda = log(lambdas[end])
     low_res = residues[end]
@@ -144,11 +114,26 @@ function fit_elbow!(solver::LassoADMM, x::Vector, y::AbstractVector, A::Abstract
     end
     optlambda = lambdas[imax]
     optnonzero = nonzeros[imax]
+    =#
+
+    p = fit(log.(lambdas), residues,10, dt=1.0e-6, mu=0.9)
+    @show p
+    optlambda = exp(p[1])
+    fit_impl!(solver, x, y, A, cf, optlambda)
+
+    nonzero, res, penalty, cost = lasso_cost!(x,y,A,Ax,lambda)
+
+    push!(lambdas, optlambda)
+    push!(residues, res)
+    push!(penalties, penalty)
+    push!(costs, cost)
+    push!(nonzeros, nonzero)
+
     sortedidx = sortperm(lambdas)
 
-    result = LassoResult(optlambda, optnonzero, lambdas[sortedidx], residues[sortedidx], penalties[sortedidx], costs[sortedidx], nonzeros[sortedidx])
+    result = LassoResult(optlambda, nonzero, lambdas[sortedidx], residues[sortedidx], penalties[sortedidx], costs[sortedidx], nonzeros[sortedidx])
 
-    return fit_impl!(solver, x, y, A, cf, optlambda), result
+    return x, result, p
 end
 
 function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractMatrix, cf::LinAlg.Cholesky, lambda::Real)
@@ -175,25 +160,11 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
 
     cost = 0.0
     LinAlg.BLAS.gemv!('N', 1.0, A, x, 0.0, Ax)
-    for i in 1:ny
+    @inbounds for i in 1:ny
         cost += 0.5*(y[i] - Ax[i])^2
-        if isinf(cost)
-            info("cost diverges at $(i)!")
-            for j in 1:ny
-                @printf("%d %.15f %.15f\n", j, Ax[j], y[j])
-            end
-            error("")
-        end
     end
-    for i in 1:nx
+    @inbounds for i in 1:nx
         cost += lambda*abs(x[i])
-        if isinf(cost)
-            info("cost diverges at $(i)!")
-            for j in 1:nx
-                @printf("%d %.15f\n", j, x[j])
-            end
-            error("")
-        end
     end
     cost *= invnx
     old_cost = cost
@@ -219,7 +190,6 @@ function fit_impl!(solver::LassoADMM, x::Vector, y::AbstractVector, A::AbstractM
         if isinf(cost)
             error("cost diverges!")
         end
-        cost *= invnx
         cost *= invnx
         push!(solver.costs, cost)
         if abs(cost - old_cost)/cost < tol && iter >= solver.miniter
