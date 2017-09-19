@@ -7,5 +7,6 @@ using LearnBase
 using LsqFit
 
 include("Sparse/sparse.jl")
+include("Clustering/k-means.jl")
 
 end
