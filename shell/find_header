@@ -2,10 +2,12 @@
 
 if [ ${1:-UNDEF} == "--cxx" ]; then
   COMPILER=${CXX:-c++}
+  SUFFIX=.cc
   header_name=$2
   shift
 else
   COMPILER=${CC:-cc}
+  SUFFIX=.c
   header_name=$1
 fi
 
@@ -16,8 +18,8 @@ fi
 
 
 tempfile=$(mktemp)
-mv $tempfile $tempfile.c
-tempfile=$tempfile.c
+mv $tempfile ${tempfile}${SUFFIX}
+tempfile=${tempfile}${SUFFIX}
 trap "rm -f $tempfile" EXIT
 echo "#include <$1>" > $tempfile
 
