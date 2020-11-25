@@ -1,0 +1,32 @@
+#!/bin/sh
+
+if [ ${1:-UNDEF} == "--cxx" ]; then
+  COMPILER=${CXX:-c++}
+  header_name=$2
+  shift
+else
+  COMPILER=${CC:-cc}
+  header_name=$1
+fi
+
+if [ $# -eq 0 ]; then
+  echo "usage: $0 [--cxx] header_name"
+  exit 1
+fi
+
+
+tempfile=$(mktemp)
+mv $tempfile $tempfile.c
+tempfile=$tempfile.c
+trap "rm -f $tempfile" EXIT
+echo "#include <$1>" > $tempfile
+
+ret=0
+${COMPILER} -H -fsyntax-only $tempfile >/dev/null 2>/dev/null || ret=$?
+if [ $ret -ne 0 ]; then
+  echo "$1 is not found"
+  exit $ret
+fi
+header=$(${COMPILER} -H -fsyntax-only $tempfile 2>&1 | grep $1 | head -n1 | awk '{print $2}')
+echo ${header%/$1}
+
